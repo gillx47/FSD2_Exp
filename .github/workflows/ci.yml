@@ -1,0 +1,54 @@
+name: Continuous Integration (CI) Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Multi-Tier Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 1. Build and verify Experiment 3.2.1
+      - name: Build & Test Experiment 3.2.1 (Unit, MockMvc, Pact, Testcontainers)
+        working-directory: ./exp_3.2.1
+        run: |
+          mvn clean test --batch-mode
+
+      # 2. Upload Generated Pact Contracts
+      - name: Archive Pact Contracts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pact-contracts
+          path: exp_3.2.1/target/pacts/
+          retention-days: 7
+
+      # 3. Archive Surefire Test Reports
+      - name: Archive Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-test-reports
+          path: exp_3.2.1/target/surefire-reports/
+          retention-days: 7
+
+      # 4. Also verify Experiment 3.1 (Kafka Reliability)
+      - name: Build & Test Experiment 3.1 (Kafka Retries, DLQ, Idempotency)
+        working-directory: ./exp_3.1
+        run: |
+          mvn clean test --batch-mode
