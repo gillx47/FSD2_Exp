@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: kafka-reliable-posts
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: scheduled-posts-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.example.kafkareliable.model,*"
+        spring.json.value.default.type: com.example.kafkareliable.model.ScheduledPostEvent
+        spring.json.use.type.headers: false
+
+app:
+  kafka:
+    topics:
+      scheduled-posts: scheduled-posts-topic
+      dlq: scheduled-posts-topic.DLT
+    retry:
+      max-attempts: 3
+      initial-interval-ms: 1000
+      multiplier: 2.0
+      max-interval-ms: 10000
+
+logging:
+  level:
+    com.example.kafkareliable: INFO
+    org.apache.kafka: WARN
